@@ -1,4 +1,5 @@
 import numpy as np
+import re
 
 def parse_file(filename): 
     with open(filename, 'r') as file:
@@ -17,25 +18,31 @@ def parse_file(filename):
         print(f"Processing line: {line}")
 
         # Parse matrix metadata
-        if line.startswith('Num:'):
-            # If there's an existing matrix, save it first
-            if current_matrix:
-                current_matrix['matrix_rows'] = matrix_rows  # Assign collected matrix rows
-                matrices.append(current_matrix)
-                matrix_rows = []  # Reset matrix rows for next matrix
+        match = re.match(r'([A-Za-z0-9]+)\s*:\s*(.*)', line)  # Allow spaces around colon
+        if match:
+            key, value = match.groups()
+            key = key.strip()
+            value = value.strip()
+
+            if key == 'Num':
+                # If there's an existing matrix, save it first
+                if current_matrix:
+                    current_matrix['matrix_rows'] = matrix_rows  # Assign collected matrix rows
+                    matrices.append(current_matrix)
+                    matrix_rows = []  # Reset matrix rows for next matrix
+                
+                # Start a new matrix
+                current_matrix = {'Num': int(value)}
             
-            # Start a new matrix
-            current_matrix = {'Num': int(line.split(':')[1].strip())}
-        
-        elif line.startswith('H11:'):
-            current_matrix['H11'] = float(line.split(':')[1].strip())
-        
-        elif line.startswith('C2:'):
-            current_matrix['C2'] = list(map(int, line.split(':')[1].strip('{}').split(',')))
-        
-        elif line.startswith('Redun:'):
-            current_matrix['Redun'] = list(map(int, line.split(':')[1].strip('{}').split(',')))
-        
+            elif key == 'H11':
+                current_matrix['H11'] = float(value)
+            
+            elif key == 'C2':
+                current_matrix['C2'] = list(map(int, value.strip('{}').split(',')))
+            
+            elif key == 'Redun':
+                current_matrix['Redun'] = list(map(int, value.strip('{}').split(',')))
+
         elif line.startswith('{') and line.endswith('}'):
             # Parse matrix row inside curly braces
             matrix_row = list(map(int, line[1:-1].strip().split(',')))
@@ -86,7 +93,7 @@ def process_matrices(matrices):
             split_results.append({
                 'Num': mat['Num'],
                 'H11': mat['H11'],
-                'Matrix': split_matrix
+                'Matrix': split_mat
             })
     
     # Sort results by H11
