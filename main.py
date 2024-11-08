@@ -85,6 +85,10 @@ def process_matrices(matrices):
 
 def write_output(results, output_filename):
     """Write the processed matrices to the output file."""
+    if not results:
+        print("No results to write!")
+        return
+    
     with open(output_filename, 'w') as f:
         for res in results:
             f.write(f"Num    : {res['Num']}\nH11    : {res['H11']}\n")
