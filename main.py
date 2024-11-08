@@ -1,6 +1,6 @@
 import numpy as np
 
-def parse_file(filename): # I believe this is working well
+def parse_file(filename): 
     with open(filename, 'r') as file:
         lines = file.readlines()
 
@@ -18,6 +18,11 @@ def parse_file(filename): # I believe this is working well
 
         # Try to extract 'Num:' information
         if 'Num:' in line:
+            # If current_matrix has data, add it to matrices
+            if current_matrix:
+                matrices.append(current_matrix)
+                current_matrix = {}  # Reset for the new matrix
+            
             try:
                 current_matrix['Num'] = int(line.split(':')[1].strip())
             except IndexError:
@@ -33,14 +38,15 @@ def parse_file(filename): # I believe this is working well
         # Process rows enclosed in curly braces
         elif line.startswith('{') and line.endswith('}'):
             matrix_row = line[1:-1].strip()  # Remove curly braces
-            current_matrix['matrix_rows'] = matrix_row
+            if 'matrix_rows' not in current_matrix:
+                current_matrix['matrix_rows'] = []
+            current_matrix['matrix_rows'].append(matrix_row)
         
-        # Handle end of matrix (if needed)
-        # For example, when you encounter a new 'Num:' line or the end of the file:
-        if 'Num:' in line or line == lines[-1]:
-            matrices.append(current_matrix)
-            current_matrix = {}
+    # Ensure the last matrix is added (if there's any data left)
+    if current_matrix:
+        matrices.append(current_matrix)
 
+    print(f"Number of matrices parsed: {len(matrices)}")
     return matrices
 
 def split_matrix(matrix): # Might need some work
