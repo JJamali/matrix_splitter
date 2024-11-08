@@ -80,7 +80,12 @@ def process_matrices(matrices):
         
         # Create the new matrix from the split
         split_mat = np.hstack([X, M.reshape(-1, 1)])  # Add M as the last column
-        split_mat = np.append(split_mat, [[a]], axis=1)  # Add sum a as the last row
+        
+        # Reshape 'a' to be a column vector with the same number of rows as split_mat
+        a = np.full((split_mat.shape[0], 1), a)  # Create a column with 'a' repeated
+        
+        # Append 'a' as the last column
+        split_mat = np.hstack([split_mat, a])
 
         # Check for duplicates based on row/column swaps
         is_duplicate = False
@@ -99,6 +104,7 @@ def process_matrices(matrices):
     # Sort results by H11
     split_results.sort(key=lambda x: x['H11'])
     return split_results
+
 
 def write_output(results, output_filename):
     """Write the processed matrices to the output file."""
