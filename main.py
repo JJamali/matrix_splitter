@@ -6,54 +6,56 @@ def parse_file(filename):
 
     matrices = []
     current_matrix = {}
+    matrix_rows = []
 
     for line in lines:
-        # Skip empty lines or lines that don't contain the expected structure
         line = line.strip()
         if not line:
             continue
-        
-        # Debug: print each line as you process it
+
+        # Print to see what each line is
         print(f"Processing line: {line}")
 
-        # Try to extract 'Num:' information
-        if 'Num:' in line:
-            # If current_matrix has data, add it to matrices
+        # Parse matrix metadata
+        if line.startswith('Num:'):
+            # If there's an existing matrix, save it first
             if current_matrix:
+                current_matrix['matrix_rows'] = matrix_rows  # Assign collected matrix rows
                 matrices.append(current_matrix)
-                current_matrix = {}  # Reset for the new matrix
+                matrix_rows = []  # Reset matrix rows for next matrix
             
-            try:
-                current_matrix['Num'] = int(line.split(':')[1].strip())
-            except IndexError:
-                print(f"Error parsing line: {line}")
-                continue
-        elif 'H11:' in line:
-            try:
-                current_matrix['H11'] = float(line.split(':')[1].strip())
-            except IndexError:
-                print(f"Error parsing line: {line}")
-                continue
+            # Start a new matrix
+            current_matrix = {'Num': int(line.split(':')[1].strip())}
         
-        # Process rows enclosed in curly braces
+        elif line.startswith('H11:'):
+            current_matrix['H11'] = float(line.split(':')[1].strip())
+        
+        elif line.startswith('C2:'):
+            current_matrix['C2'] = list(map(int, line.split(':')[1].strip('{}').split(',')))
+        
+        elif line.startswith('Redun:'):
+            current_matrix['Redun'] = list(map(int, line.split(':')[1].strip('{}').split(',')))
+        
         elif line.startswith('{') and line.endswith('}'):
-            matrix_row = line[1:-1].strip()  # Remove curly braces
-            if 'matrix_rows' not in current_matrix:
-                current_matrix['matrix_rows'] = []
-            current_matrix['matrix_rows'].append(matrix_row)
-        
-    # Ensure the last matrix is added (if there's any data left)
+            # Parse matrix row inside curly braces
+            matrix_row = list(map(int, line[1:-1].strip().split(',')))
+            matrix_rows.append(matrix_row)
+
+    # Don't forget to add the last matrix after the loop
     if current_matrix:
+        current_matrix['matrix_rows'] = matrix_rows
         matrices.append(current_matrix)
 
     print(f"Number of matrices parsed: {len(matrices)}")
     return matrices
 
-def split_matrix(matrix): # Might need some work
+
+def split_matrix(matrix): 
     """Split the matrix according to the given rule."""
-    X = matrix[:, :-1]
-    M = matrix[:, -1]
-    a = np.sum(M)
+    matrix_data = np.array(matrix['matrix_rows'])
+    X = matrix_data[:, :-1]  # All columns except the last
+    M = matrix_data[:, -1]   # Last column
+    a = np.sum(M)  # Sum of last column
     return X, M, a
 
 def are_matrices_identical(matrix1, matrix2):
@@ -62,19 +64,21 @@ def are_matrices_identical(matrix1, matrix2):
             np.array_equal(np.sort(matrix1, axis=1), np.sort(matrix2, axis=1)))
 
 def process_matrices(matrices):
-    """Process matrices, split them and find unique results."""
+    """Process matrices, split them, and find unique results."""
     split_results = []
+    
     for mat in matrices:
         # Apply splitting rule
-        X, M, a = split_matrix(mat['Matrix'])
-        # Create the new matrix from the split
-        split_matrix = np.hstack([X, M.reshape(-1, 1)])
-        split_matrix = np.append(split_matrix, [[a]], axis=1)
+        X, M, a = split_matrix(mat)
         
-        # Check if this split matrix already exists (considering row and column swaps)
+        # Create the new matrix from the split
+        split_mat = np.hstack([X, M.reshape(-1, 1)])  # Add M as the last column
+        split_mat = np.append(split_mat, [[a]], axis=1)  # Add sum a as the last row
+
+        # Check for duplicates based on row/column swaps
         is_duplicate = False
         for res in split_results:
-            if are_matrices_identical(res['Matrix'], split_matrix):
+            if are_matrices_identical(res['Matrix'], split_mat):
                 is_duplicate = True
                 break
         
@@ -85,7 +89,7 @@ def process_matrices(matrices):
                 'Matrix': split_matrix
             })
     
-    # Sort by H11
+    # Sort results by H11
     split_results.sort(key=lambda x: x['H11'])
     return split_results
 
